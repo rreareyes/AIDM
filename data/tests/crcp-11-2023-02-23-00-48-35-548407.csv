@@ -1,0 +1,16 @@
+id, risk, color, card, draw, choice, failed, start, end
+11,65,purple,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_k0_saturn_crescent_moons.png,1,1,False,6.77049879997503,7.472152899950743
+11,65,purple,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_g0_scarab_winged_moon.png,2,1,False,9.220230999984778,9.776361700030975
+11,65,purple,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_c2_solar_system.png,3,1,False,11.58669689996168,11.826916899997741
+11,65,purple,none,3,0,99,13.803418199997395,15.06473320000805
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_k0_saturn_crescent_moons.png,1,1,False,15.269615900004283,16.0466657000361
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_g0_scarab_winged_moon.png,2,1,False,17.920169200049713,19.647378399968147
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_c2_solar_system.png,3,1,False,21.553130200016312,22.998307600035332
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_k0_saturn_crescent_moons.png,4,1,False,24.78646440000739,25.057584599941038
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_b0_dragonfly_moon_phase.png,5,1,False,26.986342099960893,27.139257499948144
+11,17,blue,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_x0_butterfly_metamorphosis.png,6,1,False,28.903044100035913,29.137882499955595
+11,17,blue,bad,7,1,True,30.886112199979834,31.161669799941592
+11,33,green,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_k0_saturn_crescent_moons.png,1,1,False,34.736808600020595,35.34047699999064
+11,33,green,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_g0_scarab_winged_moon.png,2,1,False,37.11950120003894,38.28258110000752
+11,33,green,C:\Users\rerr_\My Drive\Graduate\Lab\Studies\AIDM\figures\stim\card_c2_solar_system.png,3,1,False,40.11893829994369,41.06915510003455
+11,33,green,none,3,0,99,42.95259390003048,44.890957699972205
