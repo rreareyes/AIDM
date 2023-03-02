@@ -1,521 +1,452 @@
-#!/usr/bin/env python3
-
-from psychopy import event, core
-from psychopy.visual import Window, TextBox2
-from psychopy.visual import ImageStim
-from psychopy.visual.rect import Rect
-from psychopy.core import Clock
-from psychopy.clock import CountdownTimer
-from random import randint
+from doctest import FAIL_FAST
+import random
+from psychopy import core, data, event, gui, visual
 import datetime
 import os
-
-# CONSTANTS #
-# window size
-WIDTH = 1920
-HEIGHT = 1080
-
-# length of experiment (in seconds)
-DURATION = 60 * 2  # 25 minutes
-# number of times key must be pressed to trigger effect
-TRIGGER_AMTS = (100, 10, 10)
-# duration of protection when triggered (in seconds)
-PROTECT_DURATION = 250
-# lower, upper bounds for provocation delay (in seconds)
-PROVOKE_RANGE = (6, 120)
-# toggles the A, B, C buttons
-BTNS_ENABLED = (True, True, True)
-# number of rounds without participant stealing (key B) before computer steals
-STEAL_PATIENCE = 5
-# number of rounds without participant shielding (key C) before computer steals
-SHIELD_PATIENCE = 5
-
-WHITE = (1, 1, 1)
-BLACK = (-1, -1, -1)
-GREEN = (-1, 0.5, -1)
-BLUE = (-1, -1, 1)
-RED = (1, -1, -1)
-LINE_WIDTH = 2
-
-PHASE_INTRO = 0
-PHASE_CONNECT = 1
-PHASE_PLAY = 2
-PHASE_END = 3
-
-STATE_INTRO = 0
-STATE_SETUP = 1
-STATE_INSTA = 2
-STATE_INSTN = 3
-STATE_INSTB = 4
-STATE_INSTC = 5
-STATE_START = 6
-
-STATE_CHOOSE = 0
-STATE_A = 1
-STATE_B = 2
-STATE_C = 3
-
-BOX_ARGS = {
-    "units": "pix",
-    "lineWidth": LINE_WIDTH,
-    "lineColor": BLACK
-}
-TEXT_ARGS = {
-    "units": "pix",
-}
-
-HEADER_SIZE = (1800, 100)
-HEADER_POS = (0, 400)
-HEADER_FONTSIZE = 50
-
-DESC1_POS = (-800, 150)
-DESC2_POS = (0, 150)
-DESC3_POS = (-800, -100)
-DESC_FONTSIZE = 30
-
-BTN_SIZE = (550, 50)
-BACK_POS = (-500, -450)
-FWD_POS = (500, -450)
-BTN_FONTSIZE = 30
-
-CONNECT_SIZE = (800, 100)
-CONNECT_POS = (0, 0)
-CONNECT_FONTSIZE = 30
-CONNECT_DELAY = 5  # connection delay (fake)
-
-POINTS_LABEL_POS = (-100, 250)
-POINTS_COUNTER_POS = (100, 250)
-BUTTON_POS = (
-    (-400, 0),
-    (0, 0),
-    (400, 0)
-)
-PRESS_LABEL_POS = (-100, -250)
-PRESS_COUNTER_POS = (100, -250)
-LABEL_FONTSIZE = 30
-COUNTER_FONTSIZE = 40
-COUNTER_FONTSIZE_BIG = 80
-BUTTON_FONTSIZE = 200
-BUTTON_FONTSIZE_BIG = 300
-
-IMG_POS = (-400, 100)
-IMG_SIZE = (500, 300)
+import glob
+import sys
+import string
+import math
+import pandas as pd
+import numpy as np
+from tkinter import messagebox
 
 
-def main(file_path: str=None):
-    global phase, state, protect_timer, provoke_timer, provoke_active,\
-        points_timer, block_timer, blocked, provoked, rounds_since_steal,\
-        rounds_since_shield, script_file, script, fullwidth, participant_id,\
-        date_time, output, a_presses, b_presses, c_presses, earned, deducted,\
-        points, window, header_box, header_text, desc_text1, desc_text2,\
-        desc_text3, back_box, back_text, fwd_box, fwd_text, img_stim,\
-        intro_stims, connect_box, connect_text, connect_stims,\
-        connect_start_time, points_text, points_counter, points_counter_green,\
-        points_counter_red, buttons, buttons_big, press_text, press_counter,\
-        presses, play_stims_start, play_stims_all, end_text
-    phase = PHASE_INTRO
-    state = STATE_INTRO
+# SETUP 
+## Ensure that relative paths start from the same directory as this script
+DIR_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DIR_DATA = os.path.join(DIR_BASE, "data", "psap")
+DIR_DSET = os.path.join(DIR_BASE, "data", "setup")
+DIR_INST = os.path.join(DIR_BASE, "instructions")
+DIR_FIGS = os.path.join(DIR_BASE, "figures")
+DIR_STIM = os.path.join(DIR_FIGS, "stim")
+DIR_FSET = os.path.join(DIR_FIGS, "setup")
 
-    exp_clock = Clock()
-    protect_timer = CountdownTimer(0)
-    provoke_timer = CountdownTimer(0)
-    provoke_active = False  # Tracks whether the participant can be provoked
-    points_timer = CountdownTimer(0)  # track time to size & color reset
-    block_timer = CountdownTimer(0)  # track time to allow buttons again
-    blocked = False
-    # track if point has been taken since the beginning or
-    # the last protection interval
-    provoked = False
-    rounds_since_steal = 0
-    rounds_since_shield = 0
+# Image paths
+BUTTON_LIST = glob.glob(os.path.join(DIR_STIM, "button*.png"))
+TOKEN_LIST  = glob.glob(os.path.join(DIR_STIM, "hex*.png"))
 
-    script_file = open("script.txt", "r")
-    script = tuple(script_file.read().split("==="))  # split into sections
-    script = [string.split("---") for string in script]
+SHIELD = os.path.join(DIR_STIM, "shield.png")
 
-    fullwidth = [True, False, False, False, True, True, True]
+# Obtain participant and setup information
+clock = core.monotonicClock
 
-    if file_path is None:
-        participant_id = input("Please enter your participant ID: ")
-        date_time = datetime.datetime.now()
-        date_time_str = f"{date_time.day}-{date_time.month}-" +\
-        f"{date_time.year} {date_time.hour}h{date_time.minute}m{date_time.second}s"
-        output = open("data" + os.sep + str(participant_id) +
-                      " " + date_time_str + ".csv", "w")
+exp_info = {"experiment_name":"AIDM-PSAP",
+            "date_time":str(datetime.datetime.now()).replace(" ", "-").replace(":", "-").replace(".", "-"),
+            "psychopyVersion":"3.2.4"}
+
+setup_dialog = gui.Dlg(title = exp_info["experiment_name"]) 
+setup_dialog.addField("Participant ID")
+setup_dialog.addField("Condition", choices=("A", "B", "C"))
+setup_dialog.addField("Practice?", choices=("Yes", "No"))
+response = setup_dialog.show()
+
+if(setup_dialog.OK):
+    if response[0] == "":
+        exp_info["participant_id"] =  0
     else:
-        output = open(file_path, "w")
-    output.write("time,a_presses,b_presses,c_presses,earned,deducted,total\n")
-    a_presses = 0
-    b_presses = 0
-    c_presses = 0
-    earned = 0
-    deducted = 0
-    points = 0
+        exp_info["participant_id"] = response[0]
+    
+    condition = response[1]
+    test_run = response[2] == "Yes"
+else:
+    core.quit() # user pressed cancel
 
-    # window stuff
-    window = Window((WIDTH, HEIGHT), color=WHITE,
-                    fullscr=True, units="pix")
+while True:
+    try:
+        int(exp_info["participant_id"])
+        break
+    except ValueError:
+        print("ERROR: Only use numbers for the Participant ID")
+        messagebox.showerror("ERROR:", "Only use numbers for the Participant ID")
+        core.quit()
 
-    # intro stims
-    header_box = Rect(win=window, size=HEADER_SIZE, pos=HEADER_POS,
-                      fillColor=WHITE, autoDraw=True, **BOX_ARGS)
-    header_text = TextBox2(win=window, pos=HEADER_POS, bold=True,
-                           text="", color=BLACK,
-                           letterHeight=HEADER_FONTSIZE,
-                           alignment="center", autoDraw=True,
-                           **TEXT_ARGS)
-    # full width
-    desc_text1 = TextBox2(win=window, pos=DESC1_POS, bold=True,
-                          text="", size=[1600, None], color=BLACK,
-                          letterHeight=DESC_FONTSIZE, anchor="top_left",
-                          alignment="top_left", autoDraw=True, **TEXT_ARGS)
-    # right
-    desc_text2 = TextBox2(win=window, pos=DESC2_POS, bold=True,
-                          text="", color=BLACK,
-                          letterHeight=DESC_FONTSIZE, anchor="top_left",
-                          alignment="top_left", autoDraw=True, **TEXT_ARGS)
-    # bottom
-    desc_text3 = TextBox2(win=window, pos=DESC3_POS, bold=True,
-                          text="", size=[1600, None], color=BLACK,
-                          letterHeight=DESC_FONTSIZE, anchor="top_left",
-                          alignment="top_left", autoDraw=True, **TEXT_ARGS)
-    # forward/back
-    back_box = Rect(win=window, size=BTN_SIZE, pos=BACK_POS,
-                    fillColor=WHITE, autoDraw=True, **BOX_ARGS)
-    back_text = TextBox2(win=window, pos=BACK_POS,
-                         text="Press [backspace] for previous page",
-                         letterHeight=BTN_FONTSIZE,
-                         alignment="center", autoDraw=True,
-                         color=BLACK, **TEXT_ARGS)
-    fwd_box = Rect(win=window, size=BTN_SIZE, pos=FWD_POS,
-                   fillColor=WHITE, autoDraw=True, **BOX_ARGS)
-    fwd_text = TextBox2(win=window, pos=FWD_POS,
-                        text="Press [space] for next page",
-                        letterHeight=BTN_FONTSIZE, color=BLACK,
-                        alignment="center", autoDraw=True,
-                        **TEXT_ARGS)
+# Define behavior for practice and normal runs
+if test_run == True:
+    N_TRIALS = 1  # repetitions of risk
+    exp_info["Participant ID"] = "practice"
+    DIR_DATA = os.path.join(DIR_BASE, "data", "tests")
+    TASK_DURATION = 200
+elif test_run == False:
+    N_TRIALS = 10
+    TASK_DURATION = 1500
 
-    # images
-    img_stim = ImageStim(window, image="setup.png", pos=IMG_POS,
-                         size=IMG_SIZE, anchor="CENTER")
+if condition == "A":
+    INCIDENT = os.path.join(DIR_STIM, "steal.png")
+    
+else:
+    INCIDENT = os.path.join(DIR_STIM, "glitch.png")
 
-    intro_stims = [
-        header_box,
-        desc_text1,
-        desc_text2,
-        desc_text3,
-        header_text,
-        fwd_text,
-        fwd_box,
-        back_text,
-        back_box,
-        img_stim
-    ]
+# Window settings
+WIN_WIDTH  = 1920
+WIN_HEIGHT = 1080
 
-    # connect stim
-    connect_box = Rect(win=window, size=CONNECT_SIZE, pos=CONNECT_POS,
-                       fillColor=WHITE, **BOX_ARGS)
-    connect_text = TextBox2(win=window, pos=CONNECT_POS, bold=True,
-                            text="Connecting to server . . . please wait.",
-                            letterHeight=CONNECT_FONTSIZE,
-                            alignment="center", autoDraw=False,
-                            color=BLACK, **TEXT_ARGS)
-    connect_stims = [connect_box, connect_text]
-    connect_start_time = None
+win = visual.Window(
+    size    = (WIN_WIDTH, WIN_HEIGHT),
+    units   = "pix",
+    color   = "#666666",
+    fullscr = False
+)
 
-    # play stims
-    points_text = TextBox2(win=window, pos=POINTS_LABEL_POS,
-                           text="Points:", letterHeight=LABEL_FONTSIZE,
-                           alignment="center", autoDraw=False, color=BLACK,
-                           **TEXT_ARGS)
-    points_counter = TextBox2(win=window, pos=POINTS_COUNTER_POS,
-                              text="0", letterHeight=COUNTER_FONTSIZE,
-                              alignment="center", autoDraw=False, color=BLACK,
-                              **TEXT_ARGS)
+# Define controls
+KEY_NAME_LIST = ["S", "H", "L"]
+KEY_LIST      = ["s", "h", "l"]
+KEY_QUIT      = "escape"
+ACTION_LIST   = ["Earn", "Deduct", "Protect"]
+KEY_NEXT      = "return"
 
-    points_counter_green = TextBox2(win=window, pos=POINTS_COUNTER_POS,
-                                    text="0", letterHeight=COUNTER_FONTSIZE_BIG,
-                                    alignment="center", autoDraw=False, color=GREEN,
-                                    **TEXT_ARGS)
+# Randomly assign buttons and icons to actions
+random.shuffle(ACTION_LIST)
+random.shuffle(BUTTON_LIST)
 
-    points_counter_red = TextBox2(win=window, pos=POINTS_COUNTER_POS,
-                                  text="0", letterHeight=COUNTER_FONTSIZE_BIG,
-                                  alignment="center", autoDraw=False, color=RED,
-                                  **TEXT_ARGS)
+MSG_LIST = [f"Press {KEY_NAME_LIST[0]} to {ACTION_LIST[0]}",
+            f"Press {KEY_NAME_LIST[1]} to {ACTION_LIST[1]}",
+            f"Press {KEY_NAME_LIST[2]} to {ACTION_LIST[2]}"]
 
-    buttons = [TextBox2(win=window, pos=BUTTON_POS[i], text=chr(ord('A')+i),
-                        letterHeight=BUTTON_FONTSIZE, alignment="center",
-                        autoDraw=False, color=BLACK, **TEXT_ARGS)
-               for i in range(3)]
-    buttons_big = [TextBox2(win=window, pos=BUTTON_POS[i], text=chr(ord('A')+i),
-                            letterHeight=BUTTON_FONTSIZE_BIG, alignment="center",
-                            autoDraw=False, color=BLUE, **TEXT_ARGS)
-                   for i in range(3)]
-    press_text = TextBox2(win=window, pos=PRESS_LABEL_POS,
-                          text="Button presses:", letterHeight=LABEL_FONTSIZE,
-                          alignment="center", autoDraw=False, color=BLACK,
-                          **TEXT_ARGS)
-    press_counter = TextBox2(win=window, pos=PRESS_COUNTER_POS,
-                             text="0", letterHeight=COUNTER_FONTSIZE,
-                             alignment="center", autoDraw=False, color=BLACK,
-                             **TEXT_ARGS)
-    presses = 0
-    play_stims_start = [points_text, points_counter, press_text, press_counter]
-    play_stims_all = [s for s in play_stims_start] + [points_counter_green,
-                                                      points_counter_red] + [b for b in buttons] + [b for b in buttons_big]
+# Define and initialize csv file to dump data
+PSAP_FILE = os.path.join(DIR_DATA, "%s-%s-%s-%s" % ("psap", exp_info["participant_id"], condition, exp_info["date_time"]) + ".csv")
+psap_log = open(PSAP_FILE, "w")
+psap_log.write("id, condition, color_01, color_02, color_03, action_01, action_02, action_03, choice, n_incidents, t_last_incident, start, end\n")
 
-    # end stim
-    end_text = TextBox2(win=window, pos=(0, 0), bold=True,
-                        text="You are now done with the experiment."
-                        " Press [esc] to exit.",
-                        letterHeight=CONNECT_FONTSIZE,
-                        alignment="center", autoDraw=False,
-                        color=BLACK, **TEXT_ARGS)
+# Text settings
+CONTROL_SIZE = 50
+SCORE_SIZE   = 60
+N_KEY_SIZE   = 50
+SUMMARY_SIZE = 80
 
+SHIELDED_COLOR = "#93FAEE"
+LOST_COLOR     = "#FFA6A3"
+EARNINGS_COLOR = "#ABFF94"
+SUMMARY_COLOR  = "#F7E759"
 
-def update_log():
-    output.write(",".join([
-        str(core.monotonicClock.getTime()),
-        str(a_presses),
-        str(b_presses),
-        str(c_presses),
-        str(earned),
-        str(deducted),
-        str(points)
-    ])+"\n")
+BUTTON_COLORS = ["#9E005D", "#2E5892", "#F7931E"]
 
+BUTTON_SIZE = [250, 250]
+STATUS_SIZE = [100, 90]
 
-def refresh_text():
-    if phase == PHASE_INTRO:
-        header_text.text = script[state][0].replace("\n", "")
-        if fullwidth[state]:
-            desc_text1.text = script[state][1].lstrip().rstrip()
-            desc_text2.text = ""
-        else:
-            desc_text1.text = ""
-            desc_text2.text = script[state][1].lstrip().rstrip()
-        desc_text3.text = script[state][2].lstrip().rstrip()
+BUTTON_POS = [[-500, 0],
+              [0, 0],
+              [500, 0]]
 
+CTRL_POS = [[BUTTON_POS[0][0], BUTTON_POS[0][1] - 200],
+            [BUTTON_POS[1][0], BUTTON_POS[1][1] - 200],
+            [BUTTON_POS[2][0], BUTTON_POS[2][1] - 200]]
 
-def start_connect_phase():
-    global phase, state, connect_start_time
-    phase = PHASE_CONNECT
-    state = STATE_CHOOSE
-    for stim in intro_stims:
-        stim.autoDraw = False
-    for stim in connect_stims:
-        stim.autoDraw = True
-    connect_start_time = core.monotonicClock.getTime()
+SCORE_POS  = [0, BUTTON_POS[0][1] + 370]
+COUNT_POS  = [SCORE_POS[0], SCORE_POS[1] - 70]
 
+KEY_POS    = [SCORE_POS[0], -250]
+N_KEY_POS  = [KEY_POS[0] + 50, KEY_POS[1] - 70]
 
-def start_provocation():
-    global provoke_timer, provoke_active
-    delay = randint(PROVOKE_RANGE[0], PROVOKE_RANGE[1])
-    provoke_timer = CountdownTimer(delay)
-    provoke_active = True
+STATUS_POS = [SCORE_POS[0] - 125, COUNT_POS[1] - 5]
 
+# Define objects to draw
+## Text
+control_text = visual.TextStim(
+    win,
+    color     = "White",
+    height    = CONTROL_SIZE,
+    units     = "pix",
+    alignText = "center"
+)
 
-def start_play_phase():
-    global phase, state
-    phase = PHASE_PLAY
-    state = STATE_CHOOSE
-    for stim in connect_stims:
-        stim.autoDraw = False
-    for stim in play_stims_start:
-        stim.autoDraw = True
-    for i in range(len(buttons)):
-        if BTNS_ENABLED[i]:
-            buttons[i].autoDraw = True
+score_text = visual.TextStim(
+    win,
+    text      = "Score:",
+    color     = "White",
+    height    = SCORE_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = SCORE_POS
+)
 
-    start_provocation()
+score_counter = visual.TextStim(
+    win,
+    units     = "pix",
+    alignText = "center",
+    pos       = COUNT_POS
+)
 
+action_text = visual.TextStim(
+    win,
+    text      = "Key presses:",
+    color     = "White",
+    height    = N_KEY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = KEY_POS
+)
 
-def add_press():
-    global presses
-    presses += 1
-    press_counter.text = str(presses)
+action_counter = visual.TextStim(
+    win,
+    color     = "White",
+    height    = N_KEY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = N_KEY_POS
+)
 
+incident_message = visual.TextStim(
+    win,
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    wrapWidth = 1500
+)
 
-def check_trigger():
-    global state, presses, points, points_timer, block_timer, blocked,\
-        protect_timer, provoked, earned, rounds_since_steal,\
-        rounds_since_shield
-    if state == STATE_A and presses == TRIGGER_AMTS[0]:
-        rounds_since_shield += 1
-        rounds_since_steal += 1
+final_message = visual.TextStim(
+    win,
+    color     = "White",
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    wrapWidth = 1500
+)
 
-        presses = 0
-        press_counter.text = str(presses)
-        points += 1
-        earned += 1
-        update_log()
-        points_counter.text = str(points)
-        points_counter.autoDraw = False
-        points_counter_green.text = str(points)
-        points_counter_green.autoDraw = True
-        points_counter_red.autoDraw = False
-        points_timer = CountdownTimer(1)
+final_result = visual.TextStim(
+    win,
+    color     = SUMMARY_COLOR,
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    wrapWidth = 1500
+)
 
-        for button in buttons_big:
-            button.autoDraw = False
+## Images
+shield_icon = visual.ImageStim(
+    win   = win,
+    image = SHIELD,
+    size  = STATUS_SIZE,
+    pos   = STATUS_POS
+)
 
-        block_timer = CountdownTimer(1)
-        blocked = True
-        state = STATE_CHOOSE
-    elif state == STATE_B and presses == TRIGGER_AMTS[1]\
-            or state == STATE_C and presses == TRIGGER_AMTS[2]:
-        if state == STATE_B:
-            rounds_since_steal = 0
-            rounds_since_shield += 1
-        else:
-            rounds_since_steal += 1
-            rounds_since_shield = 0
+button = visual.ImageStim(
+    win   = win,
+    size  = BUTTON_SIZE    
+)
 
-        presses = 0
-        press_counter.text = str(presses)
+status_icon = visual.ImageStim(
+    win   = win,
+    size  = STATUS_SIZE,
+    pos   = STATUS_POS
+)
 
-        for button in buttons_big:
-            button.autoDraw = False
+incident_icon = visual.ImageStim(
+    win   = win,
+    image = INCIDENT,
+    size  = STATUS_SIZE,
+    pos   = STATUS_POS
+)
 
-        if provoked:
-            protect_timer = CountdownTimer(PROTECT_DURATION)
-            provoked = False
+# Define functions to display stimuli/controls
 
-        blocked = True
-        block_timer = CountdownTimer(1)
-        state = STATE_CHOOSE
+## Main screen 
+### Show actions and controls
+def display_controls(actions):
+    for iButton in range(len(actions)):
+        button.setImage(BUTTON_LIST[iButton])
+        button.pos = BUTTON_POS[iButton]
+        control_text.setText(MSG_LIST[iButton])
+        control_text.pos = CTRL_POS[iButton]
+        control_text.wrapWidth = BUTTON_SIZE[0]
+        control_text.draw()
+        button.draw()
 
+### Score counter        
+def display_score(score, color = "White", size = SCORE_SIZE, bold = False):
+    score_counter.setText(f"{score}")
+    score_counter.color = color
+    score_counter.size = size
+    score_text.autoDraw = True
+    score_counter.autoDraw = True
+    score_counter.bold = bold
 
-def handle_keys(keys):
-    global phase, state, a_presses, b_presses, c_presses
-    if phase == PHASE_INTRO:
-        if "backspace" in keys:
-            # don't do anything if at the very first screen
-            if state == STATE_INTRO:
-                return
-            # go back by 1 screen
-            state -= 1
-            refresh_text()
-        elif "space" in keys:
-            # proceed to "connect to server"
-            if state == STATE_START:
-                start_connect_phase()
-                return
-            # go forward by 1 screen
-            state += 1
-            refresh_text()
+## Post-choice screen
+## This continues until the participant presses the selected key a set
+## number of times (determined by the threshold argument)
 
-        if state == STATE_SETUP:
-            img_stim.image = "setup.png"
-            img_stim.autoDraw = True
-        elif state == STATE_INSTA:
-            img_stim.image = "instr_a.png"
-            img_stim.autoDraw = True
-        elif state == STATE_INSTN:
-            img_stim.image = "instr_minus.png"
-            img_stim.autoDraw = True
-        else:
-            img_stim.autoDraw = False
-    elif phase == PHASE_PLAY:
-        if state == STATE_CHOOSE and not blocked:
-            if "a" in keys and BTNS_ENABLED[0]:
-                state = STATE_A
-                for button in buttons:
-                    button.autoDraw = False
-                buttons_big[0].autoDraw = True
-                add_press()
-                a_presses += 1
-            elif "b" in keys and BTNS_ENABLED[1]:
-                print("b")
-                state = STATE_B
-                for button in buttons:
-                    button.autoDraw = False
-                buttons_big[1].autoDraw = True
-                add_press()
-                b_presses += 1
-            elif "c" in keys and BTNS_ENABLED[2]:
-                state = STATE_C
-                for button in buttons:
-                    button.autoDraw = False
-                buttons_big[2].autoDraw = True
-                add_press()
-                c_presses += 1
-        elif state == STATE_A and "a" in keys:
-            add_press()
-            a_presses += 1
-            check_trigger()
-        elif state == STATE_B and "b" in keys:
-            add_press()
-            b_presses += 1
-            check_trigger()
-        elif state == STATE_C and "c" in keys:
-            add_press()
-            c_presses += 1
-            check_trigger()
+### Identify the action selected based on the key pressed
+def key_press_action(key_pressed):
+    action_dict = {"s": ACTION_LIST[0],
+                   "h": ACTION_LIST[1],
+                   "l": ACTION_LIST[2]}
 
+    return action_dict.get(key_pressed, "Invalid")
 
-def stop():
-    output.close()
+### Show only the button corresponding to the action selected
+def display_action(action):
+    button.setImage(BUTTON_LIST[action])
+    button.pos = BUTTON_POS[action]
+    control_text.setText(MSG_LIST[action])
+    control_text.pos = CTRL_POS[action]
+    control_text.wrapWidth = BUTTON_SIZE[0]
+    control_text.autoDraw = True
+    button.autoDraw = True
+
+### Key press counter
+def display_action_count(action, count, color = "White", size = N_KEY_SIZE):
+    action_text.pos = [BUTTON_POS[ACTION_LIST.index(action)][0] - 25, BUTTON_POS[ACTION_LIST.index(action)][1] + 180]
+    action_counter.setText(f"{count}")
+    action_counter.color = color
+    action_counter.size = size
+    action_counter.pos = [BUTTON_POS[ACTION_LIST.index(action)][0] + 150, BUTTON_POS[ACTION_LIST.index(action)][1] + 180]
+    action_text.draw()
+    action_counter.draw()
+
+### Wrapper that keeps state until the key press threshold is met
+def action_trigger(action, n_pressed, threshold = 10):
+    display_action(ACTION_LIST.index(action))
+    win.flip()
+    threshold_met = False
+    while not threshold_met:
+        display_action_count(action, n_pressed)
+        win.flip()
+
+        pressed = event.waitKeys(keyList = KEY_LIST[ACTION_LIST.index(action)])
+        if key_press_action(pressed[0]) == action:
+            n_pressed += 1
+            
+            if n_pressed == threshold:
+                control_text.autoDraw = False
+                button.autoDraw = False
+                threshold_met = True
+
+## Final summary
+# Shows final score and saves data
+def show_summary(score):
+    final_message.setText("This is the end of this task")
+    final_message.pos = [0, 100]
+    final_message.draw()
+    final_result.setText(f"Total Score: {score}")
+    final_result.pos = [0, 0]
+    final_result.draw()
+    final_message.setText("Thank you for participanting!")
+    final_message.pos = [0, -100]
+    final_message.draw()
+    win.flip()
+    event.waitKeys(5, "enter")
+
+def show_incident(message, color):
+    incident_message.setText(message)
+    incident_message.color = color
+    incident_message.pos = [0, 100]
+    incident_message.draw()
+
+# MAIN ROUTINE
+def psap():
+    task_finished = False
+    task_clock = core.Clock()
+    shield_clock = core.Clock()
+    adverse_clock = core.Clock()
+    shielded = False
+    score = 0
+    if condition == "A":
+        adverse_time_threshold = random.uniform(6, 60)
+    elif condition == "B":
+        adverse_time_threshold = random.uniform(400, 500)
+    elif condition == "C":
+        adverse_time_threshold = 100000
+
+    shield_time_threshold = random.uniform(4, 5.8)
+
+    incident_counter = 0
+    incident_time = 0
+    oponent = int(exp_info["participant_id"]) + 2
+    
+    while not task_finished:
+        trial_start_time = task_clock.getTime()
+        
+        if adverse_clock.getTime() > adverse_time_threshold and shielded == False:
+            incident_counter += 1
+            incident_time = task_clock.getTime()
+            
+            if condition == "A":
+                score -= 1
+                show_incident(f"Participant {oponent}\nstole from you!", LOST_COLOR) 
+                adverse_time_threshold = random.uniform(6, 60)
+            elif condition == "B":
+                score -= 2
+                show_incident("System Error!", LOST_COLOR) 
+                adverse_time_threshold = random.uniform(400, 500)
+            
+            incident_icon.autoDraw = True
+            display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
+            win.flip()
+            core.wait(random.uniform(1.5, 2))
+            incident_icon.autoDraw = False
+            adverse_clock.reset()
+            
+        if shield_clock.getTime() > shield_time_threshold: 
+            shield_time_threshold = random.uniform(4, 5)
+            shield_icon.autoDraw = False
+            display_controls(ACTION_LIST)
+            win.flip()
+            shield_clock.reset()
+            shielded = False
+                
+        display_controls(ACTION_LIST)
+        display_score(score)
+        win.flip()
+
+        key_response = event.waitKeys(keyList = KEY_LIST + [KEY_QUIT])
+
+        if key_response[0] == KEY_QUIT:  
+            return
+        
+        action = key_press_action(key_response[0])
+
+        n_pressed = 1
+
+        action_trigger(action, n_pressed)
+        trial_stop_time = clock.getTime()
+
+        temp_data = [str(exp_info["participant_id"]),
+                     str(condition), 
+                     str(os.path.basename(BUTTON_LIST[0]).split(".")[0].split("_")[1]),
+                     str(os.path.basename(BUTTON_LIST[1]).split(".")[0].split("_")[1]),
+                     str(os.path.basename(BUTTON_LIST[2]).split(".")[0].split("_")[1]),
+                     str(ACTION_LIST[0]),
+                     str(ACTION_LIST[1]),
+                     str(ACTION_LIST[2]),
+                     str(key_response),
+                     str(incident_counter),
+                     str(incident_time),
+                     str(trial_start_time),
+                     str(trial_stop_time)]
+        
+        temp_data = ",".join(temp_data)
+        temp_data = temp_data + "\n"
+        psap_log.write(temp_data)
+
+        if action == "Earn":
+            score += 1
+            display_score(score, color = EARNINGS_COLOR, size = SCORE_SIZE, bold = True)
+            show_incident("You earned 1 point!", EARNINGS_COLOR)
+            win.flip()
+        elif action == "Protect":
+            shield_icon.autoDraw = True
+            display_score(score, color = SHIELDED_COLOR, size = SCORE_SIZE, bold = True)
+            shielded = True
+            show_incident("Your points are protected\nfor some time", SHIELDED_COLOR)
+            win.flip()
+            adverse_clock.reset()
+            shield_clock.reset()
+        elif action == "Deduct":
+            show_incident("You deducted 1 point\nfrom your oponent!", SUMMARY_COLOR)
+            win.flip()
+            adverse_clock.reset()
+
+        core.wait(random.uniform(1.5, 2))
+
+    show_summary(score)
+    psap_log.close()
+
+def main():
+    
+    psap()
+    # quit experiment
+    win.close()
     core.quit()
-
-
-def run():
-    refresh_text()
-
-    # MAINLOOP #
-    while True:
-        # End experiment when the timer reaches duration
-        if phase == PHASE_PLAY and core.monotonicClock.getTime() > DURATION:
-            phase = PHASE_END
-            for stim in play_stims_all:
-                stim.autoDraw = False
-            end_text.autoDraw = True
-
-        # Reset from green points counter after point scored
-        if phase == PHASE_PLAY and points_timer.getTime() < 0:
-            points_counter.autoDraw = True
-            points_counter_green.autoDraw = False
-            points_counter_red.autoDraw = False
-        # Bring back buttons after completion of A, B, C actions
-        if phase == PHASE_PLAY and blocked and block_timer.getTime() < 0:
-            for button in buttons:
-                button.autoDraw = True
-            blocked = False
-        # Make sure participant is interacting with point-stealing/protecting
-        if phase == PHASE_PLAY and\
-                (rounds_since_shield > 5 or rounds_since_steal > 5):
-            provoke_timer.reset(0)
-            rounds_since_steal = rounds_since_shield = 0
-        # Trigger provocation
-        if phase == PHASE_PLAY and provoke_active and provoke_timer.getTime() < 0:
-            # If a protection interval is up, the point-taking interaction is
-            # skipped. A new provocation event and delay are generated whether
-            # there is a protection interval up or not.
-            if protect_timer.getTime() < 0:
-                points_counter.autoDraw = False
-                points -= 1
-                deducted += 1
-                update_log()
-                points_counter.text = str(points)
-                points_counter_red.text = str(points)
-                points_counter_red.autoDraw = True
-                points_timer = CountdownTimer(1)
-                provoked = True
-            start_provocation()
-
-        keys = event.getKeys()
-        if "escape" in keys or core.monotonicClock.getTime() > DURATION:
-            stop()
-        if phase == PHASE_INTRO:
-            handle_keys(keys)
-        elif phase == PHASE_CONNECT:
-            if core.monotonicClock.getTime() >= connect_start_time\
-                    + CONNECT_DELAY:
-                start_play_phase()
-        elif phase == PHASE_PLAY:
-            handle_keys(keys)
-
-        window.flip()
 
 
 if __name__ == "__main__":

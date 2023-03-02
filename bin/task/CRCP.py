@@ -314,7 +314,7 @@ def decisionStage(deck_image, tokens_image, tempPoints, currentValue, cards_left
     win.flip()
     deck_stack.setAutoDraw(False)
 
-def bart():
+def crcp():
     """Execute experiment"""
     random.shuffle(DECK_SEQUENCE)
     permanent_bank = 0
@@ -427,7 +427,7 @@ def bart():
 
 def main():
     
-    bart()
+    crcp()
     # quit experiment
     win.close()
     core.quit()
