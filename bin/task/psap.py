@@ -4,9 +4,6 @@ from psychopy import core, data, event, gui, visual
 import datetime
 import os
 import glob
-import sys
-import string
-import math
 import pandas as pd
 import numpy as np
 from tkinter import messagebox
@@ -39,6 +36,7 @@ setup_dialog = gui.Dlg(title = exp_info["experiment_name"])
 setup_dialog.addField("Participant ID")
 setup_dialog.addField("Condition", choices=("A", "B", "C"))
 setup_dialog.addField("Practice?", choices=("Yes", "No"))
+
 response = setup_dialog.show()
 
 if(setup_dialog.OK):
@@ -49,13 +47,16 @@ if(setup_dialog.OK):
     
     condition = response[1]
     test_run = response[2] == "Yes"
+
 else:
     core.quit() # user pressed cancel
 
 while True:
+
     try:
         int(exp_info["participant_id"])
         break
+
     except ValueError:
         print("ERROR: Only use numbers for the Participant ID")
         messagebox.showerror("ERROR:", "Only use numbers for the Participant ID")
@@ -63,12 +64,11 @@ while True:
 
 # Define behavior for practice and normal runs
 if test_run == True:
-    N_TRIALS = 1  # repetitions of risk
     exp_info["Participant ID"] = "practice"
     DIR_DATA = os.path.join(DIR_BASE, "data", "tests")
-    TASK_DURATION = 200
+    TASK_DURATION = 90
+
 elif test_run == False:
-    N_TRIALS = 10
     TASK_DURATION = 1500
 
 if condition == "A":
@@ -138,7 +138,7 @@ COUNT_POS  = [SCORE_POS[0], SCORE_POS[1] - 70]
 KEY_POS    = [SCORE_POS[0], -250]
 N_KEY_POS  = [KEY_POS[0] + 50, KEY_POS[1] - 70]
 
-STATUS_POS = [SCORE_POS[0] - 125, COUNT_POS[1] - 5]
+STATUS_POS = [SCORE_POS[0] - 135, COUNT_POS[1] - 5]
 
 # Define objects to draw
 ## Text
@@ -254,12 +254,12 @@ def display_controls(actions):
 
 ### Score counter        
 def display_score(score, color = "White", size = SCORE_SIZE, bold = False):
-    score_counter.setText(f"{score}")
-    score_counter.color = color
-    score_counter.size = size
-    score_text.autoDraw = True
+    score_counter.setText(f"{score:.2f}")
+    score_counter.color    = color
+    score_counter.size     = size
+    score_text.autoDraw    = True
     score_counter.autoDraw = True
-    score_counter.bold = bold
+    score_counter.bold     = bold
 
 ## Post-choice screen
 ## This continues until the participant presses the selected key a set
@@ -277,19 +277,23 @@ def key_press_action(key_pressed):
 def display_action(action):
     button.setImage(BUTTON_LIST[action])
     button.pos = BUTTON_POS[action]
+    
     control_text.setText(MSG_LIST[action])
-    control_text.pos = CTRL_POS[action]
+    control_text.pos       = CTRL_POS[action]
     control_text.wrapWidth = BUTTON_SIZE[0]
-    control_text.autoDraw = True
+    
+    control_text.autoDraw  = True
     button.autoDraw = True
 
 ### Key press counter
 def display_action_count(action, count, color = "White", size = N_KEY_SIZE):
     action_text.pos = [BUTTON_POS[ACTION_LIST.index(action)][0] - 25, BUTTON_POS[ACTION_LIST.index(action)][1] + 180]
+    
     action_counter.setText(f"{count}")
     action_counter.color = color
-    action_counter.size = size
-    action_counter.pos = [BUTTON_POS[ACTION_LIST.index(action)][0] + 150, BUTTON_POS[ACTION_LIST.index(action)][1] + 180]
+    action_counter.size  = size
+    action_counter.pos   = [BUTTON_POS[ACTION_LIST.index(action)][0] + 150, BUTTON_POS[ACTION_LIST.index(action)][1] + 180]
+    
     action_text.draw()
     action_counter.draw()
 
@@ -298,108 +302,209 @@ def action_trigger(action, n_pressed, threshold = 10):
     display_action(ACTION_LIST.index(action))
     win.flip()
     threshold_met = False
+
     while not threshold_met:
         display_action_count(action, n_pressed)
         win.flip()
-
         pressed = event.waitKeys(keyList = KEY_LIST[ACTION_LIST.index(action)])
+       
         if key_press_action(pressed[0]) == action:
             n_pressed += 1
             
             if n_pressed == threshold:
                 control_text.autoDraw = False
-                button.autoDraw = False
-                threshold_met = True
+                button.autoDraw       = False
+                threshold_met         = True
 
 ## Final summary
-# Shows final score and saves data
-def show_summary(score):
-    final_message.setText("This is the end of this task")
-    final_message.pos = [0, 100]
-    final_message.draw()
-    final_result.setText(f"Total Score: {score}")
-    final_result.pos = [0, 0]
-    final_result.draw()
-    final_message.setText("Thank you for participanting!")
-    final_message.pos = [0, -100]
-    final_message.draw()
+# Shows final score
+def show_summary(score, practice = False):
+    if practice == True:
+        final_message.setText("End of the Practice Round")
+        final_message.pos = [0, 100]
+        final_message.draw()
+       
+        final_message.setText("Please notify the experimenter")
+        final_message.pos = [0, 0]
+        final_message.draw()
+    
+    else:
+        final_message.setText("This is the end of this task")
+        final_message.pos = [0, 100]
+        final_message.draw()
+
+        final_result.setText(f"Total Score: {score:.2f}")
+        final_result.pos = [0, 0]
+        final_result.draw()
+        
+        final_message.setText("Thank you for participanting!")
+        final_message.pos = [0, -100]
+        final_message.draw()
+    
     win.flip()
     event.waitKeys(5, "enter")
 
 def show_incident(message, color):
     incident_message.setText(message)
     incident_message.color = color
-    incident_message.pos = [0, 100]
+    incident_message.pos   = [0, 100]
     incident_message.draw()
 
 # MAIN ROUTINE
 def psap():
-    task_finished = False
-    task_clock = core.Clock()
-    shield_clock = core.Clock()
+    # Define clocks for task events
+    task_clock    = core.Clock()
+    shield_clock  = core.Clock()
     adverse_clock = core.Clock()
-    shielded = False
-    score = 0
-    if condition == "A":
-        adverse_time_threshold = random.uniform(6, 60)
-    elif condition == "B":
-        adverse_time_threshold = random.uniform(400, 500)
-    elif condition == "C":
-        adverse_time_threshold = 100000
-
-    shield_time_threshold = random.uniform(4, 5.8)
-
-    incident_counter = 0
-    incident_time = 0
-    oponent = int(exp_info["participant_id"]) + 2
     
+    # Initialize the event states and counters
+    task_finished = False
+    shielded      = False
+    
+    incident_counter = 0
+    incident_time    = 0
+
+    score = 0
+
+    # Define event time thresholds and "opponent" name
+    # Practice rounds get fixed timers
+    if test_run == False:
+        
+        # Opponent steals
+        if condition == "A":
+            adverse_time_threshold = random.uniform(6, 60)
+        
+        # Random glitch
+        elif condition == "B":
+            adverse_time_threshold = random.uniform(400, 500)
+        
+        # Neutral, no negative events
+        elif condition == "C":
+            adverse_time_threshold = 100000
+    
+        shield_time_threshold = random.uniform(4, 5.8)
+        
+        opponent_name = int(exp_info["participant_id"]) + 2
+    
+    elif test_run == True:
+        adverse_time_threshold = 15
+        shield_time_threshold  = 4
+        
+        opponent_name = "PRACTICE"
+
+    # Main loop runs for the amount of time defined as task duration    
+    # Each decision counts as a trial in this setup
     while not task_finished:
         trial_start_time = task_clock.getTime()
+        outcome_interval = random.uniform(0.9, 1.1) #how long to display result
         
+        # End task trigger
+        if trial_start_time > TASK_DURATION:
+            task_finished = True
+
+        # Steal/Glitch trigger
+        # Both the timer and threshold for adverse events are reset 
+        # after the negative state is triggered.
         if adverse_clock.getTime() > adverse_time_threshold and shielded == False:
             incident_counter += 1
             incident_time = task_clock.getTime()
+
+            # Adverse event in actual experiment
+            if test_run == False:
             
-            if condition == "A":
-                score -= 1
-                show_incident(f"Participant {oponent}\nstole from you!", LOST_COLOR) 
-                adverse_time_threshold = random.uniform(6, 60)
-            elif condition == "B":
-                score -= 2
-                show_incident("System Error!", LOST_COLOR) 
-                adverse_time_threshold = random.uniform(400, 500)
+                # Opponent steals
+                if condition == "A":
+                    score -= 1
+                    show_incident(f"Participant {opponent_name}\nstole from you!", LOST_COLOR) 
+                    adverse_time_threshold = random.uniform(6, 60)
+                
+                # Glitch halves points
+                elif condition == "B":
+                    show_incident(f"System Error! You lost {score/2:.2f} points", LOST_COLOR) 
+                    score = score/2
+                    adverse_time_threshold = random.uniform(400, 500)
+
+                # Show outcome
+                incident_icon.autoDraw = True
+                display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
+                win.flip()
+
+                core.wait(outcome_interval)
+
+                incident_icon.autoDraw = False
+                adverse_clock.reset()
+
+            # Adverse event during practice
+            # This is designed to show both the glitch and steal scenarios
+            # Regardless of the conditions chose, this is triggered
+            elif test_run == True:
+                
+                # Alternate between steal and glitch
+                if incident_counter % 2 == 0:
+                    score -= 1
+                    show_incident(f"Participant {opponent_name}\nstole from you!", LOST_COLOR) 
+                    adverse_time_threshold = 10
+                    incident_icon.setImage(os.path.join(DIR_STIM, "steal.png"))
+                
+                else:
+                    show_incident(f"System Error! You lost {score/2:.2f} points", LOST_COLOR) 
+                    score = score/2
+                    adverse_time_threshold = 10
+                    incident_icon.setImage(os.path.join(DIR_STIM, "glitch.png"))
+
+                # Show outcome 
+                incident_icon.autoDraw = True
+                display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
+                win.flip()
+                
+                core.wait(outcome_interval)
+                
+                incident_icon.autoDraw = False
+                adverse_clock.reset()
             
-            incident_icon.autoDraw = True
-            display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
-            win.flip()
-            core.wait(random.uniform(1.5, 2))
-            incident_icon.autoDraw = False
-            adverse_clock.reset()
-            
-        if shield_clock.getTime() > shield_time_threshold: 
-            shield_time_threshold = random.uniform(4, 5)
-            shield_icon.autoDraw = False
-            display_controls(ACTION_LIST)
-            win.flip()
+        # Reset shield timer and hide icon after protection timeout
+        # This is only triggered when there is a shield in the screen
+        if shield_clock.getTime() > shield_time_threshold and shielded == True: 
+            shield_time_threshold = random.uniform(4.5, 5.5)
+            shield_icon.autoDraw  = False
             shield_clock.reset()
             shielded = False
-                
+
+        # Show decision screen
+        # Participant can choose one of three actions
         display_controls(ACTION_LIST)
         display_score(score)
         win.flip()
 
+        # Wait for participant input
         key_response = event.waitKeys(keyList = KEY_LIST + [KEY_QUIT])
 
+        # Option to quit the task
         if key_response[0] == KEY_QUIT:  
             return
         
         action = key_press_action(key_response[0])
 
+        # Start press counter
         n_pressed = 1
+        
+        # Define the number of times a button needs to be pressed
+        # to trigger the specific action.
+        if action == "Earn":
+            press_threshold = 30
+        
+        else:
+            press_threshold = 10
 
-        action_trigger(action, n_pressed)
+        # Show the pressing action screen
+        # This hides the other buttons and shows the counter until
+        # the press threshold is met
+        action_trigger(action, n_pressed, press_threshold)
+        
+        # Get time once the action is completed
         trial_stop_time = clock.getTime()
 
+        # Gather data and record on file
         temp_data = [str(exp_info["participant_id"]),
                      str(condition), 
                      str(os.path.basename(BUTTON_LIST[0]).split(".")[0].split("_")[1]),
@@ -418,11 +523,14 @@ def psap():
         temp_data = temp_data + "\n"
         psap_log.write(temp_data)
 
+        # Display action outcome
+        # Choosing to protect or deduct reset the adverse event clock
         if action == "Earn":
             score += 1
             display_score(score, color = EARNINGS_COLOR, size = SCORE_SIZE, bold = True)
             show_incident("You earned 1 point!", EARNINGS_COLOR)
             win.flip()
+
         elif action == "Protect":
             shield_icon.autoDraw = True
             display_score(score, color = SHIELDED_COLOR, size = SCORE_SIZE, bold = True)
@@ -431,14 +539,17 @@ def psap():
             win.flip()
             adverse_clock.reset()
             shield_clock.reset()
+
         elif action == "Deduct":
-            show_incident("You deducted 1 point\nfrom your oponent!", SUMMARY_COLOR)
+            show_incident("You deducted 1 point\nfrom your opponent!", SUMMARY_COLOR)
             win.flip()
             adverse_clock.reset()
 
-        core.wait(random.uniform(1.5, 2))
+        # ITI
+        core.wait(outcome_interval)
 
-    show_summary(score)
+    # Show final score
+    show_summary(score, test_run)
     psap_log.close()
 
 def main():
