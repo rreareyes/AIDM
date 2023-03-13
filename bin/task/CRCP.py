@@ -130,7 +130,7 @@ MOV_STEPS = len(range(START_ANGLE, FINAL_ANGLE, ANGLE_INC))
 POS_INC   = 17.5
 
 # Task settings
-MAX_DRAWS   = [37, 25, 17]  # three risk types
+MAX_DRAWS   = [49, 25, 17]  # three risk types
 TOTAL_DECKS = len(MAX_DRAWS) * N_TRIALS
 BREAKS      = range(19, 89, 20)
 

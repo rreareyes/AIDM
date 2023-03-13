@@ -22,6 +22,7 @@ DIR_FSET = os.path.join(DIR_FIGS, "setup")
 # Image paths
 BUTTON_LIST = glob.glob(os.path.join(DIR_STIM, "button*.png"))
 TOKEN_LIST  = glob.glob(os.path.join(DIR_STIM, "hex*.png"))
+AVATAR_LIST = glob.glob(os.path.join(DIR_STIM, "avatar*.png"))
 
 SHIELD = os.path.join(DIR_STIM, "shield.png")
 
@@ -67,9 +68,11 @@ if test_run == True:
     exp_info["Participant ID"] = "practice"
     DIR_DATA = os.path.join(DIR_BASE, "data", "tests")
     TASK_DURATION = 90
+    OPPONENT_NAME = "PRACTICE"
 
 elif test_run == False:
     TASK_DURATION = 1500
+    OPPONENT_NAME = int(exp_info["participant_id"]) + 2
 
 if condition == "A":
     INCIDENT = os.path.join(DIR_STIM, "steal.png")
@@ -123,10 +126,15 @@ BUTTON_COLORS = ["#9E005D", "#2E5892", "#F7931E"]
 
 BUTTON_SIZE = [250, 250]
 STATUS_SIZE = [100, 90]
+AVATAR_SIZE = [200, 200]
 
 BUTTON_POS = [[-500, 0],
               [0, 0],
               [500, 0]]
+
+AVATAR_POS = [[-400,  200], [-200,  200], [200,  200], [400,  200],
+              [-400,    0], [-200,    0], [200,    0], [400,    0],
+              [-400, -200], [-200, -200], [200, -200], [400, -200]]
 
 CTRL_POS = [[BUTTON_POS[0][0], BUTTON_POS[0][1] - 200],
             [BUTTON_POS[1][0], BUTTON_POS[1][1] - 200],
@@ -212,6 +220,28 @@ final_result = visual.TextStim(
     wrapWidth = 1500
 )
 
+wait_messsage = visual.TextStim(
+    win,
+    text      = "Please Wait\n\nEstablishing connection...",
+    color     = "White",
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, 100],
+    wrapWidth = 1500
+)
+
+connection_messsage = visual.TextStim(
+    win,
+    text      = f"Connection established\n\nOnline with player\n{OPPONENT_NAME}\n\n\n\n\n\nPress ENTER\nwhen you are ready",
+    color     = "White",
+    height    = SCORE_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, 0],
+    wrapWidth = 1500
+)
+
 ## Images
 shield_icon = visual.ImageStim(
     win   = win,
@@ -237,6 +267,26 @@ incident_icon = visual.ImageStim(
     size  = STATUS_SIZE,
     pos   = STATUS_POS
 )
+
+avatar_icon = visual.ImageStim(
+    win   = win,
+    size  = AVATAR_SIZE
+)
+
+avatar_a = visual.ImageStim(
+    win   = win,
+    size  = AVATAR_SIZE
+)
+
+avatar_l = avatar_k = avatar_j = avatar_i = avatar_h = avatar_g = avatar_f = avatar_e = avatar_d = avatar_c = avatar_b = avatar_a
+
+AVATARS = [avatar_a, avatar_b, avatar_c, avatar_d, avatar_e, avatar_f, 
+           avatar_g, avatar_h, avatar_i, avatar_j, avatar_k, avatar_l]
+
+for image in AVATARS:
+    image.setImage(AVATAR_LIST[image])
+    image.setPos(AVATAR_POS[image])
+
 
 # Define functions to display stimuli/controls
 
@@ -350,13 +400,29 @@ def show_incident(message, color):
     incident_message.pos   = [0, 100]
     incident_message.draw()
 
+def show_avatar(image, pos):
+    avatar_icon.setImage(image)
+    avatar_icon.setPos(pos)
+    avatar_icon.draw()
+
+def choose_avatar(images, positions):
+    for iAvatar, avatar in enumerate(images):
+        show_avatar(images[iAvatar], positions[iAvatar])
+    
+    win.flip()
+
+
 # MAIN ROUTINE
 def psap():
-    # Define clocks for task events
-    task_clock    = core.Clock()
-    shield_clock  = core.Clock()
-    adverse_clock = core.Clock()
-    
+    if test_run == False:
+        wait_messsage.draw()
+        win.flip()
+        core.wait(random.uniform(3, 4))
+        
+        connection_messsage.draw()
+        win.flip()
+        event.waitKeys()
+
     # Initialize the event states and counters
     task_finished = False
     shielded      = False
@@ -384,13 +450,14 @@ def psap():
     
         shield_time_threshold = random.uniform(4, 5.8)
         
-        opponent_name = int(exp_info["participant_id"]) + 2
-    
     elif test_run == True:
-        adverse_time_threshold = 15
+        adverse_time_threshold = 20
         shield_time_threshold  = 4
-        
-        opponent_name = "PRACTICE"
+
+    # Define clocks for task events
+    task_clock    = core.Clock()
+    shield_clock  = core.Clock()
+    adverse_clock = core.Clock()
 
     # Main loop runs for the amount of time defined as task duration    
     # Each decision counts as a trial in this setup
@@ -415,7 +482,7 @@ def psap():
                 # Opponent steals
                 if condition == "A":
                     score -= 1
-                    show_incident(f"Participant {opponent_name}\nstole from you!", LOST_COLOR) 
+                    show_incident(f"Player {OPPONENT_NAME}\nstole from you!", LOST_COLOR) 
                     adverse_time_threshold = random.uniform(6, 60)
                 
                 # Glitch halves points
@@ -442,14 +509,14 @@ def psap():
                 # Alternate between steal and glitch
                 if incident_counter % 2 == 0:
                     score -= 1
-                    show_incident(f"Participant {opponent_name}\nstole from you!", LOST_COLOR) 
-                    adverse_time_threshold = 10
+                    show_incident(f"Participant {OPPONENT_NAME}\nstole from you!", LOST_COLOR) 
+                    adverse_time_threshold = 20
                     incident_icon.setImage(os.path.join(DIR_STIM, "steal.png"))
                 
                 else:
                     show_incident(f"System Error! You lost {score/2:.2f} points", LOST_COLOR) 
                     score = score/2
-                    adverse_time_threshold = 10
+                    adverse_time_threshold = 20
                     incident_icon.setImage(os.path.join(DIR_STIM, "glitch.png"))
 
                 # Show outcome 

@@ -18,9 +18,9 @@ source(file.path(dir_helpers, "hd01_generate_deck.R"))
 
 
 ```{r}
-crcp_high <- generate_deck(32.9, 17)
-crcp_med  <- generate_deck(15.44, 25)
-crcp_low  <- generate_deck(7.13, 37)
+crcp_high <- generate_deck(8.05, 17)
+crcp_med  <- generate_deck(2.18, 33)
+crcp_low  <- generate_deck(1, 49)
 
 crcp_high$rw_round[17] <- 0
 crcp_med$rw_round[25]  <- 0
@@ -29,6 +29,10 @@ crcp_low$rw_round[37]  <- 0
 write_csv(crcp_low, file = file.path(dir_data, "crcp_low_risk.csv"))
 write_csv(crcp_med, file = file.path(dir_data, "crcp_med_risk.csv"))
 write_csv(crcp_high, file = file.path(dir_data, "crcp_high_risk.csv"))
+
+crcp_high$bn_rd[17]
+crcp_med$bn_rd[33] 
+crcp_low$bn_rd[49] 
 
 ```
 
