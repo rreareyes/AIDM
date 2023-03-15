@@ -26,6 +26,20 @@
 # Journal of Experimental Psychology: Applied, 8(2), 75-84. http://dx.doi.org/10.1037/1076-898X.8.2.75
 # source: http://www.impulsivity.org/measurement/BART
 
+# IMAGE CREDITS:
+# All stimulus images from png images were downloaded with a premium license from Freepik(https://www.freepik.com) or Adobe Stock.
+# Good cards: Ekosuwandono (Several images - https://www.freepik.com/author/ekosuwandono)
+# Bad card: Ekosuwandono (Nuclear bomb cloud - https://www.freepik.com/free-vector/atomic-or-nuclear-bomb-cloudapocalypse_24877759.htm)
+# Decks: Valentina Rusinova (Poker playing cards back side design - https://stock.adobe.com/contributor/201185799/valentina-rusinova?load_type=author&prev_url=detail&asset_id=289731748)
+
+# Glitch icon: Freepik (Glitch geometric shape collection - https://www.freepik.com/free-vector/glitch-geometric-shape-collection_4057922.htm)
+# Shield icon: Freepik (Pack of golden shields with ornaments - https://www.freepik.com/free-vector/pack-of-golden-shields-with-ornaments_1077660.htm)
+# Steal icon: User1558154 (Hacker with laptop - https://www.freepik.com/free-vector/hacker-with-laptop-hacker-attack-phishing-and-fraudvector-stock-illustration_34533105.htm)
+# Coins icon: Babysofja (Cartoon full bag of gold coins - https://www.freepik.com/free-vector/cartoon-full-bag-of-gold-coins_7194471.htm)
+# Tokens icon: Sicily87 (Coins isometric - https://www.freepik.com/free-vector/coins-isometric_31723864.htm)
+
+# Final images are available along this task, we cannot distribute the original vector images as per license agreement.
+
 from doctest import FAIL_FAST
 import random
 from psychopy import core, data, event, gui, visual

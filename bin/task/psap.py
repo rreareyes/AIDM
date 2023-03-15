@@ -1,6 +1,55 @@
+# Point Subtraction Aggression Paradigm
+# Developers: Ramiro Reyes
+
+# An adapted version of the PSAP-FS task (Golomb et al., 2007) written with PsychoPy.
+# This experiment is a computerized, laboratory-based measure of reactive aggression.
+
+# In every turn, participants choose between three actions: earn, protect, deduct.
+# Earning allows to get one point after a certain amount of button presses (30 in this
+# setup).
+# Protect allows them to avoid any negative effects impacting their score for some time 
+# (10 presses, 4-5.8s of protection in the current setup).
+# Deduct allows them to remove one point from the "opponent" (after 10 button presses),
+# but this point is not added to their own score.
+
+# It involves deception, since participants believe they are playing against an opponent
+# which may steal points from them at some point and add them to their score. However, 
+# all actions are automatic, regulated by internal clocks that trigger the "opponent's"
+# action after a certain amount of time without Deduct/Protect actions from the participant
+# (set randomly to a 6-60s uniform interval after each event).
+
+# The fact that the Deduct action doesn't add any points to the score, allows us to label
+# these responses as aggressive, since they are only motivated by retaliation, without other
+# cofounded value.
+
+# The task is set to last around 25 min (it ends after the last choice, so it may extend a
+# few seconds after the timer is exhausted). We incorporated a connection screen to help
+# with the deception aspect of the task.
+
+# Besides the original condition, we added a "fear/uncertainty" scenario to measure the 
+# effects on the Protect action, by telling the participant that a random glitch may reduce
+# their points by half at some time during the task.
+
+# We also include a neutral condition that has no adverse events at all.
+
+# It is based on:
+# Golomb, A., Cortez-Perez, M., Jaworski, B., Mednick, S. & Dimsdale, J. (2007).
+# Point Subtraction Aggression Paradigm: Validity of a Brief Schedule of Use.
+# Violence and Victi, 22(1), 95-102.
+
+# IMAGE CREDITS:
+# All stimulus images from png images were downloaded with a premium license from Freepik (https://www.freepik.com)
+# Avatar siluhettes: Rwdd_Studios - Freepik.com (Wild animals silhouettes collection - https://www.freepik.com/free-vector/wild-animals-silhouettes-collection_1043406.htm)
+# Action icons: Redzen - Freepik.com (Signs and pictograms in buttons - https://www.freepik.com/free-vector/signs-and-pictograms-in-buttons_37210218.htm)
+
+# Glitch icon: Freepik (Glitch geometric shape collection - https://www.freepik.com/free-vector/glitch-geometric-shape-collection_4057922.htm)
+# Shield icon: Freepik (Pack of golden shields with ornaments - https://www.freepik.com/free-vector/pack-of-golden-shields-with-ornaments_1077660.htm)
+# Steal icon: User1558154 - Freepik.com (Hacker with laptop - https://www.freepik.com/free-vector/hacker-with-laptop-hacker-attack-phishing-and-fraudvector-stock-illustration_34533105.htm)
+
+# IMPORT LIBRARIES
 from doctest import FAIL_FAST
 import random
-from psychopy import core, data, event, gui, visual
+from psychopy import core, event, gui, visual
 import datetime
 import os
 import glob
@@ -8,9 +57,8 @@ import pandas as pd
 import numpy as np
 from tkinter import messagebox
 
-
-# SETUP 
-## Ensure that relative paths start from the same directory as this script
+# BASE SETUP 
+## Base paths
 DIR_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DIR_DATA = os.path.join(DIR_BASE, "data", "psap")
 DIR_DSET = os.path.join(DIR_BASE, "data", "setup")
@@ -19,16 +67,17 @@ DIR_FIGS = os.path.join(DIR_BASE, "figures")
 DIR_STIM = os.path.join(DIR_FIGS, "stim")
 DIR_FSET = os.path.join(DIR_FIGS, "setup")
 
-# Image paths
+## Image paths
 BUTTON_LIST = glob.glob(os.path.join(DIR_STIM, "button*.png"))
-TOKEN_LIST  = glob.glob(os.path.join(DIR_STIM, "hex*.png"))
 AVATAR_LIST = glob.glob(os.path.join(DIR_STIM, "avatar*.png"))
 
-SHIELD = os.path.join(DIR_STIM, "shield.png")
+SHIELD  = os.path.join(DIR_STIM, "shield.png")
+PROFILE = os.path.join(DIR_STIM, "player_profile.png")
 
-# Obtain participant and setup information
+## Timing
 clock = core.monotonicClock
 
+## Dialog to enter experiment information
 exp_info = {"experiment_name":"AIDM-PSAP",
             "date_time":str(datetime.datetime.now()).replace(" ", "-").replace(":", "-").replace(".", "-"),
             "psychopyVersion":"3.2.4"}
@@ -42,7 +91,8 @@ response = setup_dialog.show()
 
 if(setup_dialog.OK):
     if response[0] == "":
-        exp_info["participant_id"] =  0
+        exp_info["participant_id"] =  9999
+    
     else:
         exp_info["participant_id"] = response[0]
     
@@ -53,7 +103,6 @@ else:
     core.quit() # user pressed cancel
 
 while True:
-
     try:
         int(exp_info["participant_id"])
         break
@@ -63,7 +112,9 @@ while True:
         messagebox.showerror("ERROR:", "Only use numbers for the Participant ID")
         core.quit()
 
-# Define behavior for practice and normal runs
+## Define behavior for practice and normal runs
+PLAYER_NAME = int(exp_info["participant_id"])
+
 if test_run == True:
     exp_info["Participant ID"] = "practice"
     DIR_DATA = os.path.join(DIR_BASE, "data", "tests")
@@ -80,7 +131,8 @@ if condition == "A":
 else:
     INCIDENT = os.path.join(DIR_STIM, "glitch.png")
 
-# Window settings
+# BASE STIM SETUP
+## Window settings
 WIN_WIDTH  = 1920
 WIN_HEIGHT = 1080
 
@@ -91,14 +143,17 @@ win = visual.Window(
     fullscr = False
 )
 
-# Define controls
+## Mouse component
+mouse = event.Mouse(win = win)
+
+## Define controls
 KEY_NAME_LIST = ["S", "H", "L"]
 KEY_LIST      = ["s", "h", "l"]
 KEY_QUIT      = "escape"
 ACTION_LIST   = ["Earn", "Deduct", "Protect"]
 KEY_NEXT      = "return"
 
-# Randomly assign buttons and icons to actions
+## Randomly assign buttons and icons to actions
 random.shuffle(ACTION_LIST)
 random.shuffle(BUTTON_LIST)
 
@@ -106,12 +161,12 @@ MSG_LIST = [f"Press {KEY_NAME_LIST[0]} to {ACTION_LIST[0]}",
             f"Press {KEY_NAME_LIST[1]} to {ACTION_LIST[1]}",
             f"Press {KEY_NAME_LIST[2]} to {ACTION_LIST[2]}"]
 
-# Define and initialize csv file to dump data
+## Define and initialize csv file to dump data
 PSAP_FILE = os.path.join(DIR_DATA, "%s-%s-%s-%s" % ("psap", exp_info["participant_id"], condition, exp_info["date_time"]) + ".csv")
 psap_log = open(PSAP_FILE, "w")
 psap_log.write("id, condition, color_01, color_02, color_03, action_01, action_02, action_03, choice, n_incidents, t_last_incident, start, end\n")
 
-# Text settings
+## Text settings
 CONTROL_SIZE = 50
 SCORE_SIZE   = 60
 N_KEY_SIZE   = 50
@@ -122,19 +177,22 @@ LOST_COLOR     = "#FFA6A3"
 EARNINGS_COLOR = "#ABFF94"
 SUMMARY_COLOR  = "#F7E759"
 
+## Stim settings
 BUTTON_COLORS = ["#9E005D", "#2E5892", "#F7931E"]
 
-BUTTON_SIZE = [250, 250]
-STATUS_SIZE = [100, 90]
-AVATAR_SIZE = [200, 200]
+BUTTON_SIZE  = [250, 250]
+STATUS_SIZE  = [100, 90]
+AVATAR_SIZE  = [200, 200]
+PROFILE_SIZE = [300, 300]
 
+## Screen positions
 BUTTON_POS = [[-500, 0],
               [0, 0],
               [500, 0]]
 
-AVATAR_POS = [[-400,  200], [-200,  200], [200,  200], [400,  200],
-              [-400,    0], [-200,    0], [200,    0], [400,    0],
-              [-400, -200], [-200, -200], [200, -200], [400, -200]]
+AVATAR_POS = [[-330,  170], [-110,  170], [110,  170], [330,  170],
+              [-330,  -50], [-110,  -50], [110,  -50], [330,  -50],
+              [-330, -270], [-110, -270], [110, -270], [330, -270]]
 
 CTRL_POS = [[BUTTON_POS[0][0], BUTTON_POS[0][1] - 200],
             [BUTTON_POS[1][0], BUTTON_POS[1][1] - 200],
@@ -148,7 +206,7 @@ N_KEY_POS  = [KEY_POS[0] + 50, KEY_POS[1] - 70]
 
 STATUS_POS = [SCORE_POS[0] - 135, COUNT_POS[1] - 5]
 
-# Define objects to draw
+# DEFINE OBJECTS TO DRAW
 ## Text
 control_text = visual.TextStim(
     win,
@@ -220,25 +278,91 @@ final_result = visual.TextStim(
     wrapWidth = 1500
 )
 
-wait_messsage = visual.TextStim(
+avatar_message = visual.TextStim(
+    win,
+    text      = "Click to choose your avatar",
+    color     = "White",
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, 350],
+    wrapWidth = 1500
+)
+
+wait_connection = visual.TextStim(
     win,
     text      = "Please Wait\n\nEstablishing connection...",
     color     = "White",
     height    = SUMMARY_SIZE,
     units     = "pix",
     alignText = "center",
-    pos       = [0, 100],
+    pos       = [0, 250],
     wrapWidth = 1500
 )
 
-connection_messsage = visual.TextStim(
+opponent_mesage = visual.TextStim(
     win,
-    text      = f"Connection established\n\nOnline with player\n{OPPONENT_NAME}\n\n\n\n\n\nPress ENTER\nwhen you are ready",
+    text      = f"Player {OPPONENT_NAME} has connected!",
+    color     = "White",
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, -350],
+    wrapWidth = 1500
+)
+
+wait_players = visual.TextStim(
+    win,
+    text      = "Waiting for players..",
     color     = "White",
     height    = SCORE_SIZE,
     units     = "pix",
     alignText = "center",
-    pos       = [0, 0],
+    pos       = [0, 300],
+    wrapWidth = 1500
+)
+
+ready_control = visual.TextStim(
+    win,
+    text      = "Press ENTER when you are ready",
+    color     = "White",
+    height    = SCORE_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, 200],
+    wrapWidth = 1500
+)
+
+ready_opponent = visual.TextStim(
+    win,
+    text      = f"Player {OPPONENT_NAME}\nis ready!",
+    color     = "White",
+    height    = CONTROL_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [550, -100],
+    wrapWidth = 1500
+)
+
+ready_player = visual.TextStim(
+    win,
+    text      = f"Player {PLAYER_NAME}\nis ready!",
+    color     = "White",
+    height    = CONTROL_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [-550, -100],
+    wrapWidth = 1500
+)
+
+launch_message = visual.TextStim(
+    win,
+    text      = "Lauching task\nPlease wait...",
+    color     = "White",
+    height    = SUMMARY_SIZE,
+    units     = "pix",
+    alignText = "center",
+    pos       = [0, 200],
     wrapWidth = 1500
 )
 
@@ -268,27 +392,90 @@ incident_icon = visual.ImageStim(
     pos   = STATUS_POS
 )
 
-avatar_icon = visual.ImageStim(
-    win   = win,
-    size  = AVATAR_SIZE
-)
-
 avatar_a = visual.ImageStim(
     win   = win,
     size  = AVATAR_SIZE
 )
 
+profile_opponent = visual.ImageStim(
+    win   = win,
+    image = PROFILE,
+    pos   = [250, -100],
+    size  = PROFILE_SIZE
+)
+
+profile_player = visual.ImageStim(
+    win   = win,
+    pos   = [-250, -100],
+    size  = PROFILE_SIZE
+)
+
+### List of possible avatars 
 avatar_l = avatar_k = avatar_j = avatar_i = avatar_h = avatar_g = avatar_f = avatar_e = avatar_d = avatar_c = avatar_b = avatar_a
 
 AVATARS = [avatar_a, avatar_b, avatar_c, avatar_d, avatar_e, avatar_f, 
            avatar_g, avatar_h, avatar_i, avatar_j, avatar_k, avatar_l]
 
-for image in AVATARS:
-    image.setImage(AVATAR_LIST[image])
-    image.setPos(AVATAR_POS[image])
+# DEFINE TASK ROUTINES
+## Connection stage
+### Avatar selection
+def choose_avatar(icons =  AVATARS, player_frame = profile_player):
+    show_images = True
 
+    while show_images == True:
+        for iImage, avatar in enumerate(icons):
+            avatar.setImage(AVATAR_LIST[iImage])
+            avatar.setPos(AVATAR_POS[iImage])
+            avatar.clicked = False
+            avatar.draw()
+        
+            if mouse.isPressedIn(avatar, buttons=[0]):
+                player_frame.setImage(avatar.image)
+                show_images = False
+        
+        avatar_message.draw()
 
-# Define functions to display stimuli/controls
+        win.flip()
+    
+    core.wait(0.4)
+
+### Wait for connection from other player
+def connection_screen(wait_time = 3):
+    wait_connection.autoDraw = profile_player.autoDraw = True
+    win.flip()
+    core.wait(wait_time)
+    profile_opponent.draw()
+    opponent_mesage.draw()
+    win.flip()
+    core.wait(wait_time-1)
+    wait_connection.autoDraw = profile_player.autoDraw = False
+    
+
+### Wait for players to be ready
+def ready_screen(wait_time = 2):
+    wait_players.autoDraw = ready_control.autoDraw = profile_player.autoDraw = profile_opponent.autoDraw = True    
+    profile_player.opacity = profile_opponent.opacity = 0.5    
+    win.flip()
+    core.wait(wait_time/2)
+    profile_opponent.opacity = 1
+    ready_opponent.autoDraw = True
+    win.flip()
+    event.waitKeys(keyList = ["return"])
+    core.wait(wait_time/5)
+    profile_player.opacity = 1
+    ready_player.autoDraw = True
+    win.flip()
+    core.wait(wait_time)
+    wait_players.autoDraw = ready_control.autoDraw = False
+    win.flip()
+
+### Launch the task
+def launcher_screen(wait_time = 3):
+    launch_message.draw()
+    win.flip()
+    core.wait(wait_time)
+    profile_opponent.autoDraw = profile_player.autoDraw = ready_opponent.autoDraw = ready_player.autoDraw = False
+    win.flip()
 
 ## Main screen 
 ### Show actions and controls
@@ -367,7 +554,7 @@ def action_trigger(action, n_pressed, threshold = 10):
                 threshold_met         = True
 
 ## Final summary
-# Shows final score
+## Shows final score
 def show_summary(score, practice = False):
     if practice == True:
         final_message.setText("End of the Practice Round")
@@ -400,30 +587,21 @@ def show_incident(message, color):
     incident_message.pos   = [0, 100]
     incident_message.draw()
 
-def show_avatar(image, pos):
-    avatar_icon.setImage(image)
-    avatar_icon.setPos(pos)
-    avatar_icon.draw()
-
-def choose_avatar(images, positions):
-    for iAvatar, avatar in enumerate(images):
-        show_avatar(images[iAvatar], positions[iAvatar])
-    
-    win.flip()
-
-
 # MAIN ROUTINE
 def psap():
     if test_run == False:
-        wait_messsage.draw()
-        win.flip()
-        core.wait(random.uniform(3, 4))
-        
-        connection_messsage.draw()
-        win.flip()
-        event.waitKeys()
+        choose_avatar(icons =  AVATARS, player_frame = profile_player)        
 
-    # Initialize the event states and counters
+        ### wait for connection
+        connection_screen()
+
+        ### Wait for players to be ready
+        ready_screen()
+
+        ### Launch task
+        launcher_screen()
+
+    ## Initialize the event states and counters
     task_finished = False
     shielded      = False
     
@@ -432,19 +610,19 @@ def psap():
 
     score = 0
 
-    # Define event time thresholds and "opponent" name
-    # Practice rounds get fixed timers
+    ## Define event time thresholds
+    ### Practice rounds get fixed timers
     if test_run == False:
         
-        # Opponent steals
+        ### Opponent steals
         if condition == "A":
             adverse_time_threshold = random.uniform(6, 60)
         
-        # Random glitch
+        ### Random glitch
         elif condition == "B":
             adverse_time_threshold = random.uniform(400, 500)
         
-        # Neutral, no negative events
+        ### Neutral, no negative events
         elif condition == "C":
             adverse_time_threshold = 100000
     
@@ -454,44 +632,44 @@ def psap():
         adverse_time_threshold = 20
         shield_time_threshold  = 4
 
-    # Define clocks for task events
+    ## Define clocks for task events
     task_clock    = core.Clock()
     shield_clock  = core.Clock()
     adverse_clock = core.Clock()
 
-    # Main loop runs for the amount of time defined as task duration    
-    # Each decision counts as a trial in this setup
+    ## Main loop runs for the amount of time defined as task duration    
+    ### Each decision counts as a trial in this setup
     while not task_finished:
         trial_start_time = task_clock.getTime()
         outcome_interval = random.uniform(0.9, 1.1) #how long to display result
         
-        # End task trigger
+        ### End task trigger
         if trial_start_time > TASK_DURATION:
             task_finished = True
 
-        # Steal/Glitch trigger
-        # Both the timer and threshold for adverse events are reset 
-        # after the negative state is triggered.
+        ### Steal/Glitch trigger
+        ### Both the timer and threshold for adverse events are reset 
+        ### after the negative state is triggered.
         if adverse_clock.getTime() > adverse_time_threshold and shielded == False:
             incident_counter += 1
             incident_time = task_clock.getTime()
 
-            # Adverse event in actual experiment
+            ### Adverse event in actual experiment
             if test_run == False:
             
-                # Opponent steals
+                ### Opponent steals
                 if condition == "A":
                     score -= 1
                     show_incident(f"Player {OPPONENT_NAME}\nstole from you!", LOST_COLOR) 
                     adverse_time_threshold = random.uniform(6, 60)
                 
-                # Glitch halves points
+                ### Glitch halves points
                 elif condition == "B":
                     show_incident(f"System Error! You lost {score/2:.2f} points", LOST_COLOR) 
                     score = score/2
                     adverse_time_threshold = random.uniform(400, 500)
 
-                # Show outcome
+                ### Show outcome
                 incident_icon.autoDraw = True
                 display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
                 win.flip()
@@ -501,12 +679,12 @@ def psap():
                 incident_icon.autoDraw = False
                 adverse_clock.reset()
 
-            # Adverse event during practice
-            # This is designed to show both the glitch and steal scenarios
-            # Regardless of the conditions chose, this is triggered
+            ### Adverse event during practice
+            ### This is designed to show both the glitch and steal scenarios
+            ### Regardless of the conditions chose, this is triggered
             elif test_run == True:
                 
-                # Alternate between steal and glitch
+                ### Alternate between steal and glitch
                 if incident_counter % 2 == 0:
                     score -= 1
                     show_incident(f"Participant {OPPONENT_NAME}\nstole from you!", LOST_COLOR) 
@@ -519,7 +697,7 @@ def psap():
                     adverse_time_threshold = 20
                     incident_icon.setImage(os.path.join(DIR_STIM, "glitch.png"))
 
-                # Show outcome 
+                ### Show outcome 
                 incident_icon.autoDraw = True
                 display_score(score, color = LOST_COLOR, size = SCORE_SIZE, bold = True)
                 win.flip()
@@ -529,49 +707,49 @@ def psap():
                 incident_icon.autoDraw = False
                 adverse_clock.reset()
             
-        # Reset shield timer and hide icon after protection timeout
-        # This is only triggered when there is a shield in the screen
+        ### Reset shield timer and hide icon after protection timeout
+        ### This is only triggered when there is a shield in the screen
         if shield_clock.getTime() > shield_time_threshold and shielded == True: 
             shield_time_threshold = random.uniform(4.5, 5.5)
             shield_icon.autoDraw  = False
             shield_clock.reset()
             shielded = False
 
-        # Show decision screen
-        # Participant can choose one of three actions
+        ### Show decision screen
+        ### Participant can choose one of three actions
         display_controls(ACTION_LIST)
         display_score(score)
         win.flip()
 
-        # Wait for participant input
+        ### Wait for participant input
         key_response = event.waitKeys(keyList = KEY_LIST + [KEY_QUIT])
 
-        # Option to quit the task
+        ### Option to quit the task
         if key_response[0] == KEY_QUIT:  
             return
         
         action = key_press_action(key_response[0])
 
-        # Start press counter
+        ### Start press counter
         n_pressed = 1
         
-        # Define the number of times a button needs to be pressed
-        # to trigger the specific action.
+        ### Define the number of times a button needs to be pressed
+        ### to trigger the specific action.
         if action == "Earn":
             press_threshold = 30
         
         else:
             press_threshold = 10
 
-        # Show the pressing action screen
-        # This hides the other buttons and shows the counter until
-        # the press threshold is met
+        ### Show the pressing action screen
+        ### This hides the other buttons and shows the counter until
+        ### the press threshold is met
         action_trigger(action, n_pressed, press_threshold)
         
-        # Get time once the action is completed
+        ### Get time once the action is completed
         trial_stop_time = clock.getTime()
 
-        # Gather data and record on file
+        ### Gather data and record on file
         temp_data = [str(exp_info["participant_id"]),
                      str(condition), 
                      str(os.path.basename(BUTTON_LIST[0]).split(".")[0].split("_")[1]),
@@ -590,8 +768,8 @@ def psap():
         temp_data = temp_data + "\n"
         psap_log.write(temp_data)
 
-        # Display action outcome
-        # Choosing to protect or deduct reset the adverse event clock
+        ### Display action outcome
+        ### Choosing to protect or deduct reset the adverse event clock
         if action == "Earn":
             score += 1
             display_score(score, color = EARNINGS_COLOR, size = SCORE_SIZE, bold = True)
@@ -612,20 +790,17 @@ def psap():
             win.flip()
             adverse_clock.reset()
 
-        # ITI
+        ### ITI
         core.wait(outcome_interval)
 
-    # Show final score
+    ## Show final score
     show_summary(score, test_run)
     psap_log.close()
 
-def main():
-    
+def main():    
     psap()
-    # quit experiment
     win.close()
     core.quit()
-
 
 if __name__ == "__main__":
     main()
